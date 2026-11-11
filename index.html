@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>婚宴排桌小幫手</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f7f3ee; --panel:#fffdfa; --line:#e6ddd2; --ink:#2f2925; --muted:#8a7f76;
+  --main:#8e2f3c; --tbl:#c08a55; --tbl-ink:#fff;
+  --bride:#f6dce2; --bride-b:#d98a9c; --groom:#dbe8f6; --groom-b:#7ea3cf; --other:#ecebe7; --other-b:#a9a39b;
+  --accent:#8e2f3c; --ok:#3d8b5a; --warn:#c0392b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"Noto Sans TC",system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;display:flex;flex-direction:column;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.title{font-family:"Noto Serif TC",serif;font-size:19px;font-weight:600;border:none;background:transparent;min-width:220px;padding:4px 6px;border-radius:6px}
+.title:hover,.title:focus{background:#f3ece4;outline:none}
+.stats{display:flex;gap:6px;flex-wrap:wrap}
+.stat{background:#f3ece4;border-radius:999px;padding:3px 10px;font-size:12.5px;color:var(--muted)}
+.stat b{color:var(--ink);font-weight:700;margin-left:3px}
+.stat.warn b{color:var(--warn)}
+.toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:#cdbfae;background:#fbf7f2}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{background:#7a2633}
+.btn.ghost{border-color:transparent;background:transparent}
+.sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.field{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.field input[type=number]{width:56px;padding:5px 6px;border:1px solid var(--line);border-radius:7px;background:#fff;text-align:center}
+main{flex:1;display:flex;min-height:0}
+aside{width:290px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.aside-head{padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.aside-head h2{font-size:14px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+.aside-head h2 span{font-weight:400;color:var(--muted);font-size:12.5px}
+.search{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.seg{display:flex;gap:4px;margin-top:8px}
+.seg button{flex:1;border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 0;font-size:12.5px}
+.seg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pool{flex:1;overflow:auto;padding:8px 10px 20px}
+.pool.drop-hover{background:#f6efe6;outline:2px dashed #cdbfae;outline-offset:-6px}
+.grp{margin:8px 0 12px}
+.grp-h{font-size:12px;color:var(--muted);margin:0 4px 6px;display:flex;justify-content:space-between}
+.fam{border-left:3px solid var(--line);padding:2px 0 2px 6px;margin-bottom:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:999px;border:1px solid;margin:2px 3px 2px 0;font-size:13px;touch-action:none;user-select:none;cursor:grab;background:#fff}
+.chip.女方{background:var(--bride);border-color:var(--bride-b)}
+.chip.男方{background:var(--groom);border-color:var(--groom-b)}
+.chip.其他{background:var(--other);border-color:var(--other-b)}
+.chip small{color:var(--muted);font-size:11px}
+.chip.seated{opacity:.45}
+.tag{font-size:10.5px;padding:0 5px;border-radius:5px;line-height:16px}
+.tag.veg{background:#e1f1e5;color:#2e6b44}
+.tag.kid{background:#fff1cc;color:#8a6200}
+.tag.alg{background:#fde3df;color:#a8322a}
+.empty-note{color:var(--muted);font-size:13px;text-align:center;padding:30px 10px;line-height:1.7}
+.hall-wrap{flex:1;overflow:auto;position:relative;background:
+  radial-gradient(circle,#e3d9cc 1px,transparent 1px) 0 0/22px 22px, var(--bg)}
+.hall{position:relative;transform-origin:0 0}
+.stage{position:absolute;height:44px;border-radius:10px;background:#efe4d6;border:1px dashed #cdbfae;display:flex;align-items:center;justify-content:center;color:#9b8c7c;letter-spacing:6px;font-size:13px}
+.table{position:absolute;touch-action:none;user-select:none}
+.table .core{position:absolute;border-radius:50%;background:var(--tbl);color:var(--tbl-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:move;box-shadow:0 3px 10px rgba(80,50,30,.18);text-align:center;line-height:1.15}
+.table.main .core{background:var(--main)}
+.table .core .tn{font-weight:700;font-size:13px;max-width:90%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.table .core .tc{font-size:11px;opacity:.9}
+.table .core .tc.over{color:#ffe08a;font-weight:700}
+.table.drop-hover .core{outline:3px solid #f0c27a;outline-offset:3px}
+.seat{position:absolute;border-radius:50%;border:1.5px dashed #cdbfae;background:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;text-align:center;font-size:10.5px;line-height:1.1;overflow:hidden;touch-action:none;user-select:none;word-break:break-all;padding:2px}
+.seat.filled{border-style:solid;cursor:grab}
+.seat.女方{background:var(--bride);border-color:var(--bride-b)}
+.seat.男方{background:var(--groom);border-color:var(--groom-b)}
+.seat.其他{background:var(--other);border-color:var(--other-b)}
+.seat.drop-hover{outline:3px solid #f0c27a;outline-offset:1px}
+.seat .dot{position:absolute;right:1px;top:1px;width:8px;height:8px;border-radius:50%}
+.seat .dot.veg{background:#3d8b5a}
+.seat .dot.kid{background:#e3a400;right:auto;left:1px}
+.dragghost{position:fixed;pointer-events:none;z-index:999;opacity:.92;transform:translate(-50%,-50%) scale(1.05);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.zoom{position:absolute;right:14px;bottom:14px;display:flex;gap:4px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.06);position:fixed}
+.zoom button{border:none;background:transparent;width:30px;height:28px;border-radius:6px;font-size:15px}
+.zoom button:hover{background:#f3ece4}
+.zoom span{font-size:12px;color:var(--muted);align-self:center;min-width:40px;text-align:center}
+.legend{position:fixed;left:306px;bottom:14px;background:rgba(255,253,250,.94);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--muted);display:flex;gap:10px;align-items:center}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:4px;vertical-align:-1px;border:1px solid}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(40,30,25,.35);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal-bg.on{display:flex}
+.modal{background:var(--panel);border-radius:14px;padding:18px 20px;width:min(440px,100%);max-height:88vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.2)}
+.modal h3{margin:0 0 12px;font-size:16px;font-family:"Noto Serif TC",serif}
+.modal label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px}
+.modal input[type=text],.modal input[type=number],.modal select,.modal textarea{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.modal .row{display:flex;gap:10px}
+.modal .row>div{flex:1}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.modal .actions .left{margin-right:auto}
+.btn.danger{color:var(--warn);border-color:#f0c7c1}
+.mlist{list-style:none;padding:0;margin:8px 0 0}
+.mlist li{display:flex;align-items:center;gap:6px;padding:6px 4px;border-bottom:1px solid #f0e9e1;font-size:13.5px}
+.mlist li .nm{flex:1}
+.mlist li small{color:var(--muted)}
+.help{font-size:13px;line-height:1.75;color:#4b423c}
+.help ol{padding-left:20px;margin:6px 0}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:999px;font-size:13px;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+textarea.copy{width:100%;height:220px;font-family:ui-monospace,monospace;font-size:12px}
+@media (max-width:760px){
+  main{flex-direction:column}
+  aside{width:100%;max-height:38vh;border-right:none;border-bottom:1px solid var(--line)}
+  .legend{display:none}
+  header{padding:8px 10px}
+  .toolbar{padding:6px 10px}
+}
+</style>
+</head>
+<body>
+<header>
+  <input class="title" id="title" value="嘉俊 &amp; 珮菁 婚宴桌次表" aria-label="標題">
+  <div class="stats" id="stats"></div>
+</header>
+<div class="toolbar">
+  <button class="btn primary" id="btnImport">匯入表單 Excel</button>
+  <input type="file" id="fileImport" accept=".xlsx,.xls,.csv" hidden>
+  <span class="sep"></span>
+  <label class="field">桌數 <input type="number" id="setTables" min="1" max="80"></label>
+  <label class="field">每桌 <input type="number" id="setSeats" min="4" max="16"> 人</label>
+  <label class="field">每排 <input type="number" id="setRow" min="2" max="12"> 桌</label>
+  <button class="btn" id="btnLayout" title="依每排桌數重新排列桌子位置">重排桌位</button>
+  <span class="sep"></span>
+  <button class="btn" id="btnAutoFill" title="只把「未入座」的人依類別排進空位">自動排未入座</button>
+  <button class="btn" id="btnAutoAll" title="所有座位清空，全部人回到左邊名單">全部重排</button>
+  <button class="btn" id="btnAddGuest">＋ 新增賓客</button>
+  <span class="sep"></span>
+  <button class="btn" id="btnPngPlan">平面圖 PNG</button>
+  <button class="btn" id="btnPngList">名單 PNG</button>
+  <button class="btn" id="btnCsv">CSV</button>
+  <span class="sep"></span>
+  <button class="btn" id="btnSave" title="下載存檔，下次用「載入」開回來">儲存</button>
+  <button class="btn" id="btnLoad">載入</button>
+  <input type="file" id="fileLoad" accept=".json" hidden>
+  <button class="btn ghost" id="btnHelp">說明</button>
+</div>
+<main>
+  <aside>
+    <div class="aside-head">
+      <h2>未入座賓客 <span id="poolCount"></span></h2>
+      <input class="search" id="search" placeholder="搜尋姓名…">
+      <div class="seg" id="seg">
+        <button data-f="unseated" class="on">未入座</button>
+        <button data-f="all">全部</button>
+        <button data-f="女方">女方</button>
+        <button data-f="男方">男方</button>
+      </div>
+    </div>
+    <div class="pool" id="pool" data-pool="1"></div>
+  </aside>
+  <div class="hall-wrap" id="hallWrap">
+    <div class="hall" id="hall"></div>
+  </div>
+</main>
+<div class="legend">
+  <span><i style="background:var(--bride);border-color:var(--bride-b)"></i>女方</span>
+  <span><i style="background:var(--groom);border-color:var(--groom-b)"></i>男方</span>
+  <span><i style="background:#3d8b5a;border-color:#3d8b5a;width:8px;height:8px"></i>素食</span>
+  <span><i style="background:#e3a400;border-color:#e3a400;width:8px;height:8px"></i>兒童椅</span>
+  <span>拖曳桌子中心可移動；點一下可改桌名</span>
+</div>
+<div class="zoom">
+  <button id="zOut" aria-label="縮小">−</button><span id="zVal">100%</span><button id="zIn" aria-label="放大">＋</button><button id="zFit" aria-label="符合畫面" style="width:auto;padding:0 8px;font-size:12px">全覽</button>
+</div>
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script id="seed-data" type="application/json">[]</script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const STORE = 'wedding-seat-planner-v1';
+let downloads = null;
+try { window.claude && window.claude.use && window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {}); } catch (e) {}
+
+// ---------- state ----------
+let S = null;
+let uid = 1;
+const newId = p => p + Date.now().toString(36) + (uid++).toString(36);
+
+function defaultState() {
+  return { title: '嘉俊 & 珮菁 婚宴桌次表', settings: { tables: 26, seats: 10, perRow: 6 }, guests: [], tables: [], declined: 0, zoom: 1 };
+}
+function save() {
+  S.savedAt = Date.now();
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {}
+}
+function load() {
+  try { const t = localStorage.getItem(STORE); if (t) { const s = JSON.parse(t); if (s && s.guests && s.tables) return s; } } catch (e) {}
+  return null;
+}
+
+// ---------- name helpers ----------
+const CJK = /[㐀-鿿豈-﫿]+/;
+function shortName(n) {
+  n = String(n || '').trim();
+  const m = n.match(CJK);
+  if (m) return m[0].slice(0, 4);
+  return n.split(/[\s\/(（]/)[0].slice(0, 6) || '?';
+}
+const REL_WORD = /^(男友|女友|男朋友|女朋友|老公|老婆|先生|太太|配偶|另一半|伴侶|小孩|孩子|兒子|女兒|寶寶|媽媽|爸爸|母親|父親|朋友|同事|家人|未婚夫|未婚妻)\d*$/;
+const KID_RE = /小孩|孩子|兒子|女兒|寶寶|嬰兒|\d+\s*歲|\d+\s*個月/;
+
+function relCat(r) {
+  r = String(r || '');
+  if (/長輩|親戚|家人|家族/.test(r)) return '長輩親戚';
+  if (/同學/.test(r)) return '同學';
+  if (/同事|主管/.test(r)) return '同事';
+  if (/好朋友|閨蜜|兄弟|朋友/.test(r)) return '好友';
+  return '其他';
+}
+function relLabel(r) {
+  r = String(r || '').trim();
+  const c = relCat(r);
+  if (c !== '其他') return c;
+  return r ? r.slice(0, 10) : '其他';
+}
+function partyOf(t) {
+  t = String(t || '');
+  if (/新郎|男方/.test(t)) return '男方';
+  if (/新娘|女方/.test(t)) return '女方';
+  return '其他';
+}
+const num = t => { const m = String(t || '').match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
+
+// ---------- parse form responses ----------
+function parseRows(rows) {
+  rows = rows.filter(r => r && r.some(c => String(c ?? '').trim() !== ''));
+  if (!rows.length) throw new Error('檔案是空的');
+  const H = rows[0].map(h => String(h ?? '').trim());
+  const col = (test) => H.findIndex(test);
+  const c = {
+    ts: col(h => /時間戳記|timestamp/i.test(h)),
+    attend: col(h => /是否.*出席|能否出席|出席/.test(h) && !/幾位|人數/.test(h)),
+    name: col(h => /姓名|名字|name/i.test(h) && !/同行|攜伴/.test(h)),
+    party: col(h => /哪一方|男方|女方|男女方/.test(h)),
+    rel: col(h => /關係|類別|分類|組別/.test(h)),
+    count: col(h => /幾位|人數/.test(h) && !/兒童|素食/.test(h)),
+    comp: col(h => /同行|攜伴/.test(h)),
+    kid: col(h => /兒童/.test(h)),
+    veg: col(h => /素食/.test(h) && /人數/.test(h)),
+    vegType: col(h => /素食類型/.test(h)),
+    diet: col(h => /禁忌|過敏/.test(h)),
+  };
+  if (c.name < 0) {
+    // simple list: first col = category, second = name (Threads-style), or single name col
+    c.name = H.length > 1 ? 1 : 0; c.rel = H.length > 1 ? 0 : -1;
+  }
+  const get = (r, i) => i >= 0 ? String(r[i] ?? '').trim() : '';
+  const guests = []; let declined = 0;
+  rows.slice(1).forEach((r, ri) => {
+    const name = get(r, c.name);
+    if (!name) return;
+    const at = get(r, c.attend);
+    if (at && /禮到人不到|無法|不克|不能|不參加|不出席/.test(at)) { declined++; return; }
+    const party = partyOf(get(r, c.party));
+    const relRaw = get(r, c.rel);
+    const rel = relLabel(relRaw);
+    const rkey = (get(r, c.ts) || 'row' + ri) + '|' + name;
+    let count = Math.max(1, num(get(r, c.count)) || 1);
+    const own = shortName(name);
+    const members = [{ name, short: own, note: '', kid: false, companion: false }];
+    const compRaw = get(r, c.comp);
+    const toks = compRaw ? compRaw.split(/[、,，;；\n]+/).map(s => s.trim()).filter(Boolean) : [];
+    toks.forEach(tok => {
+      let nm = tok, note = '';
+      const m = tok.match(/^(.*?)[（(](.*?)[)）]?\s*$/);
+      if (m && /[（(]/.test(tok)) { nm = m[1].trim(); note = m[2].trim(); }
+      let short;
+      if (!nm || REL_WORD.test(nm)) { note = note || nm; nm = name.split(/[\/(（]/)[0].trim() + ' 的' + (note || '攜伴'); short = own.slice(0, 2) + '攜伴'; }
+      else short = shortName(nm);
+      members.push({ name: nm, short, note, kid: KID_RE.test(tok), companion: true });
+    });
+    for (let i = members.length; i < count; i++) {
+      members.push({ name: name.split(/[\/(（]/)[0].trim() + ' 的攜伴' + (count > 2 ? (i) : ''), short: own.slice(0, 2) + '攜伴', note: '', kid: false, companion: true });
+    }
+    // kids
+    let kids = num(get(r, c.kid));
+    members.forEach(m => { if (m.kid && kids > 0) kids--; else m.kid = false; });
+    for (let i = members.length - 1; i > 0 && kids > 0; i--) if (!members[i].kid) { members[i].kid = true; kids--; }
+    // veg
+    let veg = num(get(r, c.veg));
+    const vt = get(r, c.vegType);
+    members.forEach(m => { m.veg = ''; if (veg > 0) { m.veg = vt && !/都有/.test(vt) ? vt : '素食'; veg--; } });
+    const diet = get(r, c.diet);
+    const dietOk = diet && !/^(沒有|無|否|no|none|n\/a)$/i.test(diet);
+    members.forEach((m, i) => {
+      guests.push({
+        id: newId('g'), key: rkey + '#' + i, name: m.name, short: m.short, party, rel,
+        fam: rkey, famName: name.split(/[\/(（]/)[0].trim(), companion: m.companion,
+        veg: m.veg, kid: m.kid, note: [m.note, i === 0 && dietOk ? diet : ''].filter(Boolean).join('；'),
+        allergy: i === 0 && dietOk ? diet : '', manual: false
+      });
+    });
+  });
+  return { guests, declined };
+}
+
+// ---------- tables ----------
+function tableGeom(cap, main) {
+  const R = main ? 46 : 36, r = 20;
+  const dist = Math.max(R + 27, (cap * (2 * r + 4)) / (2 * Math.PI));
+  return { R, r, dist, size: Math.ceil(2 * (dist + r) + 6) };
+}
+const CELL = () => tableGeom(S.settings.seats, false).size + 26;
+function makeTable(i) {
+  const main = i === 0;
+  return { id: newId('t'), name: main ? '主桌' : '第 ' + (i + 1) + ' 桌', cap: S.settings.seats, main, x: 0, y: 0, seats: Array(S.settings.seats).fill(null) };
+}
+function syncTableCount() {
+  const n = Math.max(1, S.settings.tables | 0);
+  while (S.tables.length < n) { const t = makeTable(S.tables.length); placeNew(t); S.tables.push(t); }
+  if (S.tables.length > n) {
+    const removed = S.tables.splice(n);
+    const moved = removed.reduce((a, t) => a + t.seats.filter(Boolean).length, 0);
+    if (moved) toast(moved + ' 位賓客因減少桌數移回未入座');
+  }
+}
+function layoutTables() {
+  const cell = CELL(), per = Math.max(2, S.settings.perRow | 0);
+  const width = per * cell;
+  const top = 80;
+  S.tables.forEach((t, i) => {
+    const g = tableGeom(t.cap, t.main);
+    if (i === 0) { t.x = width / 2 - g.size / 2 + 20; t.y = top; return; }
+    const k = i - 1, row = Math.floor(k / per), colI = k % per;
+    t.x = 20 + colI * cell + (cell - g.size) / 2;
+    t.y = top + tableGeom(S.tables[0].cap, true).size + 30 + row * cell;
+  });
+}
+function placeNew(t) {
+  const cell = CELL(), per = Math.max(2, S.settings.perRow | 0);
+  const i = S.tables.length;
+  if (i === 0) { t.x = per * cell / 2 - 100; t.y = 80; return; }
+  const k = i - 1, row = Math.floor(k / per), colI = k % per;
+  t.x = 20 + colI * cell; t.y = 80 + 240 + row * cell;
+}
+function resizeSeats(t, cap) {
+  cap = Math.max(1, Math.min(20, cap | 0));
+  if (cap > t.seats.length) t.seats = t.seats.concat(Array(cap - t.seats.length).fill(null));
+  else if (cap < t.seats.length) {
+    const keep = t.seats.filter(Boolean);
+    const extra = keep.length > cap ? keep.length - cap : 0;
+    t.seats = keep.slice(0, cap).concat(Array(Math.max(0, cap - keep.length)).fill(null));
+    if (extra) toast(extra + ' 位賓客移回未入座');
+  }
+  t.cap = cap;
+}
+
+// ---------- lookups ----------
+const gById = id => S.guests.find(g => g.id === id);
+function seatOf(gid) {
+  for (const t of S.tables) { const i = t.seats.indexOf(gid); if (i >= 0) return { t, i }; }
+  return null;
+}
+function unseat(gid) { const s = seatOf(gid); if (s) s.t.seats[s.i] = null; }
+const groupKey = g => g.party + '・' + g.rel;
+
+// ---------- auto assign ----------
+function autoAssign(all) {
+  if (all) S.tables.forEach(t => { if (!t.main) t.seats = t.seats.map(() => null); });
+  const seated = new Set(S.tables.flatMap(t => t.seats.filter(Boolean)));
+  const pending = S.guests.filter(g => !seated.has(g.id));
+  if (!pending.length) { toast('所有賓客都已入座'); return; }
+  // families
+  const fams = new Map();
+  pending.forEach(g => { if (!fams.has(g.fam)) fams.set(g.fam, []); fams.get(g.fam).push(g); });
+  const cats = new Map();
+  for (const f of fams.values()) { const k = groupKey(f[0]); if (!cats.has(k)) cats.set(k, []); cats.get(k).push(f); }
+  const order = [...cats.entries()].sort((a, b) => {
+    const pa = a[0].split('・')[0], pb = b[0].split('・')[0];
+    if (pa !== pb) return pa === '男方' ? -1 : pb === '男方' ? 1 : pa.localeCompare(pb);
+    return b[1].flat().length - a[1].flat().length;
+  });
+  const free = t => t.seats.filter(x => !x).length;
+  const cat = t => { const c = new Map(); t.seats.filter(Boolean).forEach(id => { const g = gById(id); if (g) { const k = groupKey(g); c.set(k, (c.get(k) || 0) + 1); } }); return c; };
+  const party = t => { const p = new Set(); t.seats.filter(Boolean).forEach(id => { const g = gById(id); if (g) p.add(g.party); }); return p; };
+  const put = (t, fam) => fam.forEach(g => { const i = t.seats.indexOf(null); if (i >= 0) t.seats[i] = g.id; });
+  const pool = S.tables.filter(t => !t.main);
+  let unplaced = 0;
+  for (const [k, list] of order) {
+    list.sort((a, b) => b.length - a.length);
+    const total = list.flat().length;
+    for (const fam of list) {
+      let t = pool.find(t => cat(t).has(k) && free(t) >= fam.length);
+      if (!t && total <= 3) t = pool.find(t => free(t) >= fam.length && free(t) < t.cap && party(t).has(fam[0].party) && party(t).size === 1);
+      if (!t) t = pool.find(t => free(t) === t.cap && t.cap >= fam.length);
+      if (!t) t = pool.find(t => free(t) >= fam.length);
+      if (t) { put(t, fam); continue; }
+      // split family
+      for (const g of fam) { const t2 = pool.find(t => free(t) > 0); if (t2) put(t2, [g]); else unplaced++; }
+    }
+  }
+  if (unplaced) toast('座位不足，還有 ' + unplaced + ' 位未入座，請增加桌數');
+  else toast('已自動排入 ' + pending.length + ' 位賓客');
+}
+
+// ---------- render ----------
+let filter = 'unseated', query = '';
+function render() {
+  $('#title').value = S.title;
+  $('#setTables').value = S.settings.tables;
+  $('#setSeats').value = S.settings.seats;
+  $('#setRow').value = S.settings.perRow;
+  renderStats(); renderPool(); renderHall();
+}
+function renderStats() {
+  const seated = new Set(S.tables.flatMap(t => t.seats.filter(Boolean)));
+  const total = S.guests.length;
+  const veg = S.guests.filter(g => g.veg).length, kid = S.guests.filter(g => g.kid).length;
+  const used = S.tables.filter(t => t.seats.some(Boolean)).length;
+  const over = S.tables.filter(t => t.seats.filter(Boolean).length > t.cap).length;
+  const bride = S.guests.filter(g => g.party === '女方').length, groom = S.guests.filter(g => g.party === '男方').length;
+  $('#stats').innerHTML = [
+    ['出席', total + ' 人'], ['女方', bride], ['男方', groom],
+    ['已入座', seated.size], ['未入座', total - seated.size, total - seated.size > 0],
+    ['素食', veg], ['兒童椅', kid], ['使用', used + ' / ' + S.tables.length + ' 桌'],
+    ['禮到人不到/不克出席', S.declined || 0]
+  ].map(([k, v, w]) => `<span class="stat${w ? ' warn' : ''}">${k}<b>${v}</b></span>`).join('');
+  $('#poolCount').textContent = (total - seated.size) + ' 人';
+}
+function tagsHtml(g) {
+  return (g.veg ? `<span class="tag veg">${esc(g.veg)}</span>` : '') + (g.kid ? '<span class="tag kid">兒童椅</span>' : '') + (g.allergy ? `<span class="tag alg" title="${esc(g.allergy)}">禁忌</span>` : '');
+}
+function renderPool() {
+  const seated = new Set(S.tables.flatMap(t => t.seats.filter(Boolean)));
+  let list = S.guests.slice();
+  if (filter === 'unseated') list = list.filter(g => !seated.has(g.id));
+  else if (filter === '女方' || filter === '男方') list = list.filter(g => g.party === filter);
+  if (query) list = list.filter(g => (g.name + g.short + g.famName + g.rel).toLowerCase().includes(query.toLowerCase()));
+  if (!S.guests.length) { $('#pool').innerHTML = '<div class="empty-note">還沒有賓客名單。<br>按上方「匯入表單 Excel」，<br>或「＋ 新增賓客」。</div>'; return; }
+  if (!list.length) { $('#pool').innerHTML = `<div class="empty-note">${filter === 'unseated' && !query ? '🎉 所有人都已入座！<br>可以拖曳座位上的人互換，<br>或拖回這裡取消入座。' : '沒有符合的賓客'}</div>`; return; }
+  const groups = new Map();
+  list.forEach(g => { const k = groupKey(g); if (!groups.has(k)) groups.set(k, new Map()); const fm = groups.get(k); if (!fm.has(g.fam)) fm.set(g.fam, []); fm.get(g.fam).push(g); });
+  const keys = [...groups.keys()].sort();
+  $('#pool').innerHTML = keys.map(k => {
+    const fams = groups.get(k);
+    const n = [...fams.values()].flat().length;
+    return `<div class="grp"><div class="grp-h"><span>${esc(k)}</span><span>${n} 人</span></div>` +
+      [...fams.values()].map(f => `<div class="fam">${f.map(g => {
+        const s = seatOf(g.id);
+        return `<span class="chip ${g.party}${s ? ' seated' : ''}" data-guest="${g.id}" title="${esc(g.name)}${g.note ? '｜' + esc(g.note) : ''}">${esc(g.name)}${g.companion ? `<small>${esc(g.famName)}攜伴</small>` : ''}${tagsHtml(g)}${s ? `<small>${esc(s.t.name)}</small>` : ''}</span>`;
+      }).join('')}</div>`).join('') + '</div>';
+  }).join('');
+}
+function renderHall() {
+  const hall = $('#hall');
+  let maxX = 600, maxY = 400;
+  const cell = CELL(), per = Math.max(2, S.settings.perRow | 0);
+  const stageW = Math.min(per * cell - 40, 520);
+  let html = `<div class="stage" style="left:${20 + (per * cell - stageW) / 2}px;top:18px;width:${stageW}px">舞 台</div>`;
+  S.tables.forEach((t, ti) => {
+    const g = tableGeom(t.cap, t.main);
+    const c = g.size / 2;
+    const n = t.seats.filter(Boolean).length;
+    let seats = '';
+    t.seats.forEach((gid, i) => {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / t.seats.length;
+      const x = c + g.dist * Math.cos(a) - g.r, y = c + g.dist * Math.sin(a) - g.r;
+      const gu = gid && gById(gid);
+      if (gu) {
+        const sn = gu.short || shortName(gu.name);
+        const label = sn.length > 2 && /[㐀-鿿]/.test(sn) ? esc(sn.slice(0, 2)) + '<br>' + esc(sn.slice(2)) : esc(sn);
+        seats += `<div class="seat filled ${gu.party}" data-seat="${t.id}:${i}" data-guest="${gu.id}" title="${esc(gu.name)}${gu.companion ? '（' + esc(gu.famName) + ' 攜伴）' : ''}｜${esc(gu.party)}・${esc(gu.rel)}${gu.note ? '｜' + esc(gu.note) : ''}" style="left:${x}px;top:${y}px;width:${g.r * 2}px;height:${g.r * 2}px">${label}${gu.veg ? '<i class="dot veg"></i>' : ''}${gu.kid ? '<i class="dot kid"></i>' : ''}</div>`;
+      } else seats += `<div class="seat" data-seat="${t.id}:${i}" style="left:${x}px;top:${y}px;width:${g.r * 2}px;height:${g.r * 2}px"></div>`;
+    });
+    html += `<div class="table${t.main ? ' main' : ''}" data-table="${t.id}" style="left:${t.x}px;top:${t.y}px;width:${g.size}px;height:${g.size}px">
+      <div class="core" data-core="${t.id}" style="left:${c - g.R}px;top:${c - g.R}px;width:${g.R * 2}px;height:${g.R * 2}px"><span class="tn">${esc(t.name)}</span><span class="tc${n > t.cap ? ' over' : ''}">${n}/${t.cap}</span></div>${seats}</div>`;
+    maxX = Math.max(maxX, t.x + g.size + 40); maxY = Math.max(maxY, t.y + g.size + 60);
+  });
+  hall.innerHTML = html;
+  hall.style.width = maxX + 'px'; hall.style.height = maxY + 'px';
+  hall.style.transform = `scale(${S.zoom || 1})`;
+  // keep scroll area correct when scaled
+  hall.parentElement.style.setProperty('--w', maxX * (S.zoom || 1) + 'px');
+  hall.style.marginRight = (maxX * ((S.zoom || 1) - 1)) + 'px';
+  hall.style.marginBottom = (maxY * ((S.zoom || 1) - 1)) + 'px';
+  $('#zVal').textContent = Math.round((S.zoom || 1) * 100) + '%';
+}
+function commit() { save(); render(); }
+
+// ---------- drag & drop (pointer based: works on touch too) ----------
+let drag = null;
+function targetAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return null;
+  const seat = el.closest('[data-seat]'); if (seat) return { type: 'seat', el: seat };
+  const tbl = el.closest('[data-table]'); if (tbl) return { type: 'table', el: tbl };
+  const pool = el.closest('[data-pool]'); if (pool) return { type: 'pool', el: pool };
+  return null;
+}
+function clearHover() { document.querySelectorAll('.drop-hover').forEach(e => e.classList.remove('drop-hover')); }
+document.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const core = e.target.closest('[data-core]');
+  if (core) {
+    const t = S.tables.find(t => t.id === core.dataset.core);
+    drag = { kind: 'table', t, sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y, el: core.parentElement, moved: false };
+    core.setPointerCapture?.(e.pointerId); e.preventDefault(); return;
+  }
+  const gEl = e.target.closest('[data-guest]');
+  if (gEl) {
+    drag = { kind: 'guest', gid: gEl.dataset.guest, sx: e.clientX, sy: e.clientY, src: gEl, moved: false, ghost: null };
+    e.preventDefault();
+  }
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+  drag.moved = true;
+  if (drag.kind === 'table') {
+    const z = S.zoom || 1;
+    drag.t.x = Math.max(0, drag.ox + dx / z); drag.t.y = Math.max(0, drag.oy + dy / z);
+    drag.el.style.left = drag.t.x + 'px'; drag.el.style.top = drag.t.y + 'px';
+    return;
+  }
+  if (!drag.ghost) {
+    const g = gById(drag.gid);
+    const gh = document.createElement('div');
+    gh.className = 'chip dragghost ' + g.party; gh.textContent = g.name;
+    document.body.appendChild(gh); drag.ghost = gh;
+    drag.src.style.opacity = '.3';
+  }
+  drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px';
+  clearHover();
+  const tg = targetAt(e.clientX, e.clientY);
+  if (tg) tg.el.classList.add('drop-hover');
+  // autoscroll hall
+  const w = $('#hallWrap').getBoundingClientRect();
+  if (e.clientX > w.left && e.clientX < w.right && e.clientY > w.top && e.clientY < w.bottom) {
+    const m = 40;
+    if (e.clientY > w.bottom - m) $('#hallWrap').scrollTop += 12; else if (e.clientY < w.top + m) $('#hallWrap').scrollTop -= 12;
+    if (e.clientX > w.right - m) $('#hallWrap').scrollLeft += 12; else if (e.clientX < w.left + m) $('#hallWrap').scrollLeft -= 12;
+  }
+});
+document.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  clearHover();
+  if (d.ghost) d.ghost.remove();
+  if (d.src) d.src.style.opacity = '';
+  if (d.kind === 'table') {
+    if (d.moved) save(); else openTableModal(d.t);
+    return;
+  }
+  if (!d.moved) { openGuestModal(gById(d.gid)); return; }
+  const tg = targetAt(e.clientX, e.clientY);
+  if (!tg) { render(); return; }
+  const from = seatOf(d.gid);
+  if (tg.type === 'pool') { unseat(d.gid); commit(); return; }
+  if (tg.type === 'seat') {
+    const [tid, si] = tg.el.dataset.seat.split(':');
+    const t = S.tables.find(t => t.id === tid), i = +si;
+    const occ = t.seats[i];
+    if (occ === d.gid) return;
+    if (from) from.t.seats[from.i] = occ || null; // swap
+    else if (occ) { /* from pool onto occupied seat: occupant goes back to pool */ }
+    t.seats[i] = d.gid;
+    commit(); return;
+  }
+  if (tg.type === 'table') {
+    const t = S.tables.find(t => t.id === tg.el.dataset.table);
+    if (from && from.t === t) return;
+    let i = t.seats.indexOf(null);
+    if (i < 0) { t.seats.push(null); i = t.seats.length - 1; toast(t.name + ' 已超過 ' + t.cap + ' 人'); }
+    unseat(d.gid); t.seats[i] = d.gid; commit();
+  }
+});
+
+// ---------- modals ----------
+function modal(html) { $('#modal').innerHTML = html; $('#modalBg').classList.add('on'); }
+function closeModal() { $('#modalBg').classList.remove('on'); }
+$('#modalBg').addEventListener('click', e => { if (e.target.id === 'modalBg') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function openTableModal(t) {
+  const list = t.seats.map((id, i) => id ? { g: gById(id), i } : null).filter(x => x && x.g);
+  const vegN = list.filter(x => x.g.veg).length, kidN = list.filter(x => x.g.kid).length;
+  modal(`<h3>${esc(t.name)}</h3>
+    <div class="row"><div><label>桌名</label><input type="text" id="mTName" value="${esc(t.name)}"></div>
+    <div style="flex:0 0 110px"><label>座位數</label><input type="number" id="mTCap" min="1" max="20" value="${t.cap}"></div></div>
+    <label><input type="checkbox" id="mTMain" ${t.main ? 'checked' : ''}> 主桌（自動排桌時不會被動到）</label>
+    <label>本桌 ${list.length} 人${vegN ? '・素食 ' + vegN : ''}${kidN ? '・兒童椅 ' + kidN : ''}</label>
+    <ul class="mlist">${list.map(x => `<li><span class="nm">${esc(x.g.name)} <small>${esc(x.g.party)}・${esc(x.g.rel)}${x.g.companion ? '・' + esc(x.g.famName) + '攜伴' : ''}</small> ${tagsHtml(x.g)}</span><button class="btn" data-out="${x.g.id}">移出</button></li>`).join('') || '<li><small>還沒有人</small></li>'}</ul>
+    <div class="actions"><button class="btn danger left" id="mTClear">清空本桌</button><button class="btn danger" id="mTDel">刪除這桌</button><button class="btn" id="mCancel">取消</button><button class="btn primary" id="mOk">儲存</button></div>`);
+  $('#modal').querySelectorAll('[data-out]').forEach(b => b.onclick = () => { unseat(b.dataset.out); commit(); openTableModal(t); });
+  $('#mCancel').onclick = closeModal;
+  $('#mTClear').onclick = () => { t.seats = t.seats.map(() => null); commit(); openTableModal(t); };
+  $('#mTDel').onclick = () => { S.tables = S.tables.filter(x => x !== t); S.settings.tables = S.tables.length; closeModal(); commit(); };
+  $('#mOk').onclick = () => {
+    t.name = $('#mTName').value.trim() || t.name;
+    t.main = $('#mTMain').checked;
+    resizeSeats(t, +$('#mTCap').value || t.cap);
+    closeModal(); commit();
+  };
+}
+function guestForm(g) {
+  const opt = (v, cur) => `<option ${v === cur ? 'selected' : ''}>${v}</option>`;
+  return `<label>姓名（全名）</label><input type="text" id="mGName" value="${esc(g.name)}">
+    <div class="row"><div><label>座位上顯示（建議 2–4 字）</label><input type="text" id="mGShort" maxlength="6" value="${esc(g.short)}"></div>
+    <div><label>男方 / 女方</label><select id="mGParty">${['女方', '男方', '其他'].map(v => opt(v, g.party)).join('')}</select></div></div>
+    <div class="row"><div><label>類別</label><input type="text" id="mGRel" list="relList" value="${esc(g.rel)}"><datalist id="relList">${['長輩親戚', '同學', '同事', '好友', '其他'].map(v => `<option value="${v}">`).join('')}</datalist></div>
+    <div><label>素食</label><select id="mGVeg">${['', '素食', '全素', '蛋奶素'].map(v => `<option value="${v}" ${v === g.veg ? 'selected' : ''}>${v || '不需要'}</option>`).join('')}</select></div></div>
+    <label><input type="checkbox" id="mGKid" ${g.kid ? 'checked' : ''}> 需要兒童座椅 / 兒童餐</label>
+    <label>備註（飲食禁忌、過敏等）</label><input type="text" id="mGNote" value="${esc(g.note)}">`;
+}
+function readGuestForm(g) {
+  g.name = $('#mGName').value.trim() || g.name;
+  g.short = $('#mGShort').value.trim() || shortName(g.name);
+  g.party = $('#mGParty').value; g.rel = $('#mGRel').value.trim() || '其他';
+  g.veg = $('#mGVeg').value; g.kid = $('#mGKid').checked;
+  g.note = $('#mGNote').value.trim(); g.allergy = g.note;
+}
+function openGuestModal(g) {
+  if (!g) return;
+  const s = seatOf(g.id);
+  const fam = S.guests.filter(x => x.fam === g.fam && x !== g);
+  modal(`<h3>${esc(g.name)}</h3>${guestForm(g)}
+    <label>座位</label><select id="mGTable"><option value="">未入座</option>${S.tables.map(t => `<option value="${t.id}" ${s && s.t === t ? 'selected' : ''}>${esc(t.name)}（${t.seats.filter(Boolean).length}/${t.cap}）</option>`).join('')}</select>
+    ${fam.length ? `<label>同行：${fam.map(x => esc(x.name)).join('、')}</label><label><input type="checkbox" id="mGFam"> 同行的人一起換到同一桌</label>` : ''}
+    <div class="actions"><button class="btn danger left" id="mGDel">刪除賓客</button><button class="btn" id="mCancel">取消</button><button class="btn primary" id="mOk">儲存</button></div>`);
+  $('#mCancel').onclick = closeModal;
+  $('#mGDel').onclick = () => { unseat(g.id); S.guests = S.guests.filter(x => x !== g); closeModal(); commit(); };
+  $('#mOk').onclick = () => {
+    readGuestForm(g);
+    const tid = $('#mGTable').value;
+    const who = [g].concat($('#mGFam') && $('#mGFam').checked ? fam : []);
+    const cur = seatOf(g.id);
+    if (!tid) who.forEach(x => unseat(x.id));
+    else if (!cur || cur.t.id !== tid || who.length > 1) {
+      const t = S.tables.find(t => t.id === tid);
+      who.forEach(x => { const c = seatOf(x.id); if (c && c.t === t) return; unseat(x.id); let i = t.seats.indexOf(null); if (i < 0) { t.seats.push(null); i = t.seats.length - 1; } t.seats[i] = x.id; });
+    }
+    closeModal(); commit();
+  };
+}
+function openAddGuest() {
+  const g = { id: newId('g'), key: newId('k'), name: '', short: '', party: '女方', rel: '好友', fam: '', famName: '', companion: false, veg: '', kid: false, note: '', allergy: '', manual: true };
+  modal(`<h3>新增賓客</h3>${guestForm(g)}<div class="actions"><button class="btn" id="mCancel">取消</button><button class="btn primary" id="mOk">加入名單</button></div>`);
+  $('#mGName').focus();
+  $('#mCancel').onclick = closeModal;
+  $('#mOk').onclick = () => {
+    if (!$('#mGName').value.trim()) { $('#mGName').focus(); return; }
+    readGuestForm(g); g.fam = g.key; g.famName = g.name.split(/[\/(（]/)[0];
+    S.guests.push(g); closeModal(); commit(); toast('已加入：' + g.name);
+  };
+}
+function openHelp() {
+  modal(`<h3>使用說明</h3><div class="help">
+  <ol>
+    <li><b>匯入名單</b>：在 Google 表單回覆試算表按「檔案 → 下載 → Microsoft Excel (.xlsx)」，再用「匯入表單 Excel」。會自動讀姓名、男女方、關係、出席人數、同行親友、素食、兒童椅；「禮到人不到 / 無法出席」的人不會排進座位。</li>
+    <li><b>之後回覆變多</b>：再匯入一次新的 Excel 即可，<b>已經排好的人會留在原位</b>，新回覆的人會出現在左邊「未入座」。</li>
+    <li><b>自動排桌</b>：「自動排入未入座」只處理左邊還沒坐的人；「全部重排」會把所有人移回左邊名單，讓你從頭排。自動排的規則：同一組（男/女方＋關係）盡量同桌、同行的人一定坐一起。</li>
+    <li><b>手動調整</b>：把人拖到座位小圓圈上；拖到有人的座位會<b>互換</b>；拖到桌子中央會坐到空位；拖回左邊就取消入座。</li>
+    <li><b>桌子</b>：拖曳桌子中心可以移動位置（對照場地平面）；點一下可改桌名、座位數（可加到 11、12 人）、設為主桌。</li>
+    <li><b>點一下人名</b>：可改名字、座位上顯示的字、素食、兒童椅、備註，或指定桌次（可勾選同行一起換）。</li>
+    <li><b>存檔</b>：會自動存在這個瀏覽器裡；要換電腦或傳給新人，請按「儲存」下載 .json，對方按「載入」就能接著排。</li>
+    <li><b>給飯店 / 收禮台</b>：「平面圖 PNG」是場地圖，「名單 PNG」是每桌完整名單，「CSV」可用 Excel 打開。</li>
+  </ol></div><div class="actions"><button class="btn primary" id="mCancel">知道了</button></div>`);
+  $('#mCancel').onclick = closeModal;
+}
+
+// ---------- toast ----------
+let tt;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); }
+
+// ---------- import ----------
+function importRows(rows) {
+  const { guests, declined } = parseRows(rows);
+  // keep old placements by key
+  const oldPos = new Map();
+  S.tables.forEach(t => t.seats.forEach((id, i) => { const g = id && gById(id); if (g) oldPos.set(g.key, { t, i }); }));
+  const oldByKey = new Map(S.guests.map(g => [g.key, g]));
+  const manual = S.guests.filter(g => g.manual);
+  // keep user edits on existing guests
+  const merged = guests.map(ng => { const og = oldByKey.get(ng.key); return og ? Object.assign({}, ng, { id: og.id, name: og.name, short: og.short, party: og.party, rel: og.rel, veg: og.veg, kid: og.kid, note: og.note, allergy: og.allergy }) : ng; });
+  const keepIds = new Set(merged.map(g => g.id).concat(manual.map(g => g.id)));
+  S.tables.forEach(t => { t.seats = t.seats.map(id => keepIds.has(id) ? id : null); });
+  const added = merged.filter(g => !oldByKey.has(g.key)).length;
+  const removed = S.guests.filter(g => !g.manual && !keepIds.has(g.id)).length;
+  S.guests = merged.concat(manual);
+  S.declined = declined;
+  return { total: S.guests.length, added, removed };
+}
+$('#btnImport').onclick = () => $('#fileImport').click();
+$('#fileImport').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    if (typeof XLSX === 'undefined') throw new Error('Excel 讀取元件沒有載入，請重新整理再試');
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    const name = wb.SheetNames.find(n => { const ws = wb.Sheets[n]; return ws['!ref'] && XLSX.utils.sheet_to_json(ws, { header: 1 }).length > 1; }) || wb.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: '' });
+    const first = !S.guests.length;
+    const r = importRows(rows);
+    if (first) autoAssign(false);
+    commit();
+    toast(`匯入完成：共 ${r.total} 位出席${r.added && !first ? `，新增 ${r.added} 位（在左邊未入座）` : ''}${r.removed ? `，${r.removed} 位已不在名單中` : ''}`);
+  } catch (err) { toast('匯入失敗：' + err.message); }
+};
+
+// ---------- save / load file ----------
+function plainDownload(filename, data) {
+  try {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: filename.endsWith('.csv') ? 'text/csv;charset=utf-8' : 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return true;
+  } catch (e) { return false; }
+}
+const standalone = !window.claude;
+async function offer(filename, data, fallbackText) {
+  if (standalone && plainDownload(filename, data)) { toast('已下載 ' + filename); return; }
+  if (downloads) {
+    try { await downloads.save({ filename, data }); toast('已下載 ' + filename); return; }
+    catch (err) { if (err && err.code === 'declined') return; if (err && err.code === 'rate_limited') { toast('請稍候再試'); return; } }
+  }
+  if (fallbackText != null) {
+    modal(`<h3>這裡無法直接下載</h3><p class="help">請全選複製下面內容，貼到記事本存成 <b>${esc(filename)}</b>。</p><textarea class="copy" readonly>${esc(fallbackText)}</textarea><div class="actions"><button class="btn" id="mCopy">複製</button><button class="btn primary" id="mCancel">關閉</button></div>`);
+    $('#mCancel').onclick = closeModal;
+    $('#mCopy').onclick = async () => { try { await navigator.clipboard.writeText(fallbackText); toast('已複製'); } catch (e) { $('#modal textarea').select(); } };
+  } else toast('這個檢視無法下載檔案，請在 claude.ai 開啟此頁');
+}
+const stamp = () => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`; };
+$('#btnSave').onclick = () => { save(); const txt = JSON.stringify(S); offer(`桌次表存檔_${stamp()}.json`, txt, txt); };
+$('#btnLoad').onclick = () => $('#fileLoad').click();
+$('#fileLoad').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try { const s = JSON.parse(await f.text()); if (!s.guests || !s.tables) throw new Error('不是排桌存檔'); S = Object.assign(defaultState(), s); commit(); toast('已載入存檔'); }
+  catch (err) { toast('載入失敗：' + err.message); }
+};
+
+// ---------- CSV ----------
+function csvText() {
+  const q = v => { v = String(v ?? ''); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const out = [['桌次', '桌名', '座位', '姓名', '男女方', '類別', '同行代表', '素食', '兒童椅', '備註']];
+  S.tables.forEach((t, ti) => t.seats.forEach((id, i) => { const g = id && gById(id); if (g) out.push([ti + 1, t.name, i + 1, g.name, g.party, g.rel, g.companion ? g.famName : '', g.veg, g.kid ? '是' : '', g.note]); }));
+  const seated = new Set(S.tables.flatMap(t => t.seats.filter(Boolean)));
+  S.guests.filter(g => !seated.has(g.id)).forEach(g => out.push(['', '未入座', '', g.name, g.party, g.rel, g.companion ? g.famName : '', g.veg, g.kid ? '是' : '', g.note]));
+  out.push([]); out.push(['桌次', '桌名', '人數', '素食', '兒童椅']);
+  S.tables.forEach((t, ti) => { const gs = t.seats.filter(Boolean).map(gById).filter(Boolean); out.push([ti + 1, t.name, gs.length, gs.filter(g => g.veg).length, gs.filter(g => g.kid).length]); });
+  return '﻿' + out.map(r => r.map(q).join(',')).join('\r\n');
+}
+$('#btnCsv').onclick = () => { const t = csvText(); offer(`桌次表_${stamp()}.csv`, t, t); };
+
+// ---------- PNG ----------
+const PCOL = { '女方': ['#f6dce2', '#d98a9c'], '男方': ['#dbe8f6', '#7ea3cf'], '其他': ['#ecebe7', '#a9a39b'] };
+async function fontsReady() { try { await document.fonts.ready; } catch (e) {} }
+function canvasBlob(cv) { return new Promise(r => cv.toBlob(r, 'image/png')); }
+async function pngPlan() {
+  await fontsReady();
+  let maxX = 0, maxY = 0;
+  S.tables.forEach(t => { const g = tableGeom(t.cap, t.main); maxX = Math.max(maxX, t.x + g.size); maxY = Math.max(maxY, t.y + g.size); });
+  const pad = 40, head = 80, sc = 2;
+  const W = maxX + pad * 2, H = maxY + pad + head;
+  const cv = document.createElement('canvas'); cv.width = W * sc; cv.height = H * sc;
+  const x = cv.getContext('2d'); x.scale(sc, sc);
+  x.fillStyle = '#fffdfa'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#2f2925'; x.font = '600 26px "Noto Serif TC", serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(S.title, W / 2, 40);
+  x.translate(pad, head - 20);
+  const cell = CELL(), per = Math.max(2, S.settings.perRow | 0), stageW = Math.min(per * cell - 40, 520);
+  x.fillStyle = '#efe4d6'; x.strokeStyle = '#cdbfae'; x.setLineDash([5, 4]);
+  roundRect(x, 20 + (per * cell - stageW) / 2, 18, stageW, 44, 10); x.fill(); x.stroke(); x.setLineDash([]);
+  x.fillStyle = '#9b8c7c'; x.font = '14px "Noto Sans TC"'; x.fillText('舞　台', 20 + per * cell / 2, 40);
+  S.tables.forEach(t => {
+    const g = tableGeom(t.cap, t.main), cx = t.x + g.size / 2, cy = t.y + g.size / 2;
+    t.seats.forEach((id, i) => {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / t.seats.length;
+      const sx = cx + g.dist * Math.cos(a), sy = cy + g.dist * Math.sin(a);
+      const gu = id && gById(id);
+      x.beginPath(); x.arc(sx, sy, g.r, 0, Math.PI * 2);
+      if (gu) { const c = PCOL[gu.party] || PCOL['其他']; x.fillStyle = c[0]; x.strokeStyle = c[1]; x.setLineDash([]); }
+      else { x.fillStyle = '#fff'; x.strokeStyle = '#cdbfae'; x.setLineDash([3, 3]); }
+      x.lineWidth = 1.5; x.fill(); x.stroke(); x.setLineDash([]);
+      if (gu) {
+        const sn = gu.short || shortName(gu.name);
+        x.fillStyle = '#2f2925'; x.font = '500 10.5px "Noto Sans TC"';
+        if (sn.length > 2 && /[㐀-鿿]/.test(sn)) { x.fillText(sn.slice(0, 2), sx, sy - 6); x.fillText(sn.slice(2), sx, sy + 6); }
+        else x.fillText(sn, sx, sy);
+        if (gu.veg) { x.fillStyle = '#3d8b5a'; x.beginPath(); x.arc(sx + g.r * .62, sy - g.r * .62, 3.5, 0, 7); x.fill(); }
+        if (gu.kid) { x.fillStyle = '#e3a400'; x.beginPath(); x.arc(sx - g.r * .62, sy - g.r * .62, 3.5, 0, 7); x.fill(); }
+      }
+    });
+    x.beginPath(); x.arc(cx, cy, g.R, 0, Math.PI * 2); x.fillStyle = t.main ? '#8e2f3c' : '#c08a55'; x.fill();
+    x.fillStyle = '#fff'; x.font = '700 13px "Noto Sans TC"'; x.fillText(fit(x, t.name, g.R * 1.8), cx, cy - 7);
+    x.font = '11px "Noto Sans TC"'; x.fillText(t.seats.filter(Boolean).length + ' 人', cx, cy + 9);
+  });
+  return cv;
+}
+function fit(x, s, w) { if (x.measureText(s).width <= w) return s; while (s.length > 1 && x.measureText(s + '…').width > w) s = s.slice(0, -1); return s + '…'; }
+function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
+async function pngList() {
+  await fontsReady();
+  const cols = Math.max(1, Math.min(4, S.tables.filter(t => t.seats.some(Boolean)).length)), cw = 300, lh = 26, gap = 18, pad = 40, head = 90;
+  const tabs = S.tables.filter(t => t.seats.some(Boolean));
+  const maxN = Math.max(...S.tables.map(t => t.seats.length), 10);
+  const ch = 64 + maxN * lh + 16;
+  const rows = Math.ceil(tabs.length / cols) || 1;
+  const W = pad * 2 + cols * cw + (cols - 1) * gap, H = head + rows * (ch + gap) + pad;
+  const sc = 2, cv = document.createElement('canvas'); cv.width = W * sc; cv.height = H * sc;
+  const x = cv.getContext('2d'); x.scale(sc, sc);
+  x.fillStyle = '#fffdfa'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#2f2925'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '600 28px "Noto Serif TC", serif';
+  x.fillText(S.title, W / 2, 44);
+  x.font = '13px "Noto Sans TC"'; x.fillStyle = '#8a7f76';
+  x.fillText(`共 ${S.guests.length} 位・${tabs.length} 桌　● 綠點素食　● 黃點兒童椅`, W / 2, 72);
+  tabs.forEach((t, k) => {
+    const ti = S.tables.indexOf(t);
+    const bx = pad + (k % cols) * (cw + gap), by = head + Math.floor(k / cols) * (ch + gap);
+    x.fillStyle = '#fff'; x.strokeStyle = '#e6ddd2'; x.lineWidth = 1; roundRect(x, bx, by, cw, ch, 12); x.fill(); x.stroke();
+    x.fillStyle = t.main ? '#8e2f3c' : '#c08a55'; x.beginPath(); x.arc(bx + 34, by + 32, 20, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.font = '700 15px "Noto Sans TC"'; x.textAlign = 'center'; x.fillText(t.main ? '主' : String(ti + 1), bx + 34, by + 32);
+    x.textAlign = 'left'; x.fillStyle = '#2f2925'; x.font = '700 16px "Noto Sans TC"'; x.fillText(fit(x, t.name, cw - 130), bx + 64, by + 32);
+    const gs = t.seats.filter(Boolean).map(gById).filter(Boolean);
+    x.textAlign = 'right'; x.font = '12px "Noto Sans TC"'; x.fillStyle = '#8a7f76'; x.fillText(gs.length + ' 人', bx + cw - 16, by + 32);
+    x.textAlign = 'left';
+    gs.forEach((g, i) => {
+      const y = by + 70 + i * lh;
+      const c = PCOL[g.party] || PCOL['其他'];
+      x.fillStyle = c[1]; x.beginPath(); x.arc(bx + 22, y, 4, 0, 7); x.fill();
+      x.fillStyle = '#2f2925'; x.font = '14px "Noto Sans TC"';
+      let nm = g.name; if (g.companion && !g.name.includes(g.famName)) nm += `（${g.famName}攜伴）`;
+      x.fillText(fit(x, nm, cw - 70), bx + 34, y);
+      let dx = bx + cw - 18;
+      if (g.veg) { x.fillStyle = '#3d8b5a'; x.beginPath(); x.arc(dx, y, 4, 0, 7); x.fill(); dx -= 12; }
+      if (g.kid) { x.fillStyle = '#e3a400'; x.beginPath(); x.arc(dx, y, 4, 0, 7); x.fill(); }
+    });
+  });
+  return cv;
+}
+async function exportPng(fn, name) {
+  toast('產生圖片中…');
+  const cv = await fn();
+  if (downloads || standalone) { const b = await canvasBlob(cv); return offer(name, b, null); }
+  modal(`<h3>這裡無法直接下載</h3><p class="help">在下面圖片上按右鍵（手機長按）→「另存圖片」。</p><img src="${cv.toDataURL('image/png')}" style="width:100%;border:1px solid #e6ddd2;border-radius:8px"><div class="actions"><button class="btn primary" id="mCancel">關閉</button></div>`);
+  $('#mCancel').onclick = closeModal;
+}
+$('#btnPngPlan').onclick = () => exportPng(pngPlan, `桌次平面圖_${stamp()}.png`);
+$('#btnPngList').onclick = () => exportPng(pngList, `各桌名單_${stamp()}.png`);
+
+// ---------- toolbar ----------
+$('#title').oninput = e => { S.title = e.target.value; save(); };
+$('#setTables').onchange = e => { S.settings.tables = Math.max(1, Math.min(80, +e.target.value || 1)); syncTableCount(); commit(); };
+$('#setSeats').onchange = e => {
+  const v = Math.max(4, Math.min(16, +e.target.value || 10)); S.settings.seats = v;
+  S.tables.forEach(t => { if (!t.main) resizeSeats(t, v); });
+  commit();
+};
+$('#setRow').onchange = e => { S.settings.perRow = Math.max(2, Math.min(12, +e.target.value || 6)); layoutTables(); commit(); };
+$('#btnLayout').onclick = () => { layoutTables(); commit(); };
+$('#btnAutoFill').onclick = () => { autoAssign(false); commit(); };
+$('#btnAutoAll').onclick = () => {
+  modal(`<h3>全部重排？</h3><p class="help">所有桌子（含主桌）的座位都會清空，所有人回到左邊「未入座」名單，桌子位置和桌名會保留。<br>之後可以自己拖曳安排，或按「自動排未入座」讓系統先排一版。</p><div class="actions"><button class="btn" id="mCancel">取消</button><button class="btn primary" id="mOk">清空重排</button></div>`);
+  $('#mCancel').onclick = closeModal; $('#mOk').onclick = () => { closeModal(); S.tables.forEach(t => { t.seats = t.seats.slice(0, t.cap).map(() => null); }); filter = 'unseated'; $('#seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.f === 'unseated')); commit(); toast('已清空，所有人回到左邊名單'); };
+};
+$('#btnAddGuest').onclick = openAddGuest;
+$('#btnHelp').onclick = openHelp;
+$('#search').oninput = e => { query = e.target.value.trim(); renderPool(); };
+$('#seg').onclick = e => { const b = e.target.closest('button'); if (!b) return; filter = b.dataset.f; $('#seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderPool(); };
+const setZoom = z => { S.zoom = Math.max(.35, Math.min(1.6, Math.round(z * 100) / 100)); save(); renderHall(); };
+$('#zIn').onclick = () => setZoom((S.zoom || 1) + .1);
+$('#zOut').onclick = () => setZoom((S.zoom || 1) - .1);
+$('#zFit').onclick = () => { const w = $('#hallWrap').clientWidth, h = $('#hallWrap').clientHeight; const hw = parseFloat($('#hall').style.width) || 1, hh = parseFloat($('#hall').style.height) || 1; setZoom(Math.min(w / hw, h / hh, 1)); };
+
+// ---------- boot ----------
+S = load();
+if (!S) {
+  S = defaultState();
+  syncTableCount(); layoutTables();
+  try {
+    const seed = JSON.parse(document.getElementById('seed-data').textContent);
+    if (Array.isArray(seed) && seed.length > 1) { importRows(seed); autoAssign(false); }
+  } catch (e) {}
+  save();
+  setTimeout(() => { if (window.innerWidth < 1100) $('#zFit').click(); }, 50);
+}
+render();
+})();
+</script>
+</body>
+</html>
